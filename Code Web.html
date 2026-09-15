@@ -1308,7 +1308,7 @@ function renderViewScoreEntry() {
     const scoreRowsByCode = {};
     (book.students || []).forEach(function(row) { scoreRowsByCode[String(row.studentCode || "").trim()] = row; });
     const students = [...(state.students || []).filter(student => String(student.studentCode || "").trim())];
-    (book.students || []).forEach(row=>{if(!students.some(s=>String(s.studentCode)===String(row.studentCode))) students.push(row);});
+    // Only the current class roster determines which students appear here.
     const savedScores = [];
     if (selectedTest && selectedTest.code && selectedTest.code !== "__new__") {
         students.forEach(function(student) {

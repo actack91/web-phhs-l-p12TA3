@@ -18,7 +18,7 @@ function scoreMerge(remote, previous, removedCode) {
 function scoreApply(response, old, removedCode, selection) {
     state.scoreBook=scoreMerge(response.scoreBook,old,removedCode);
     Object.assign(state.scoreBook,{selectedSubject:old.selectedSubject||'TOAN',selectedTestCode:selection || old.selectedTestCode||'',loaded:true,loading:false,updatedAt:response.updatedAt});
-    saveData(); renderLayout();
+    saveData(); if(state.currentTab==='diem-hoc-tap' && (!window.learningSection || window.learningSection==='scores')) renderLayout();
 }
 window.scoreDraftChanged=function() {
     const code=state.scoreBook.selectedTestCode;
@@ -81,9 +81,13 @@ window.saveScoreBook=async function() {
 };
 window.deleteScoreTest=async function() {
     if(scoreSyncBusy) return;
-    const old=state.scoreBook, test=(old.tests||[]).find(t=>t.code===old.selectedTestCode);
+    const old=state.scoreBook, test=old.selectedTestCode==='__new__'?old.draftTest:(old.tests||[]).find(t=>t.code===old.selectedTestCode);
     if(!test) return;
     if(!confirm('Xóa bài “'+test.title+'”? Có thể khôi phục trong mục Bài đã xóa.')) return;
+    if(test.code==='__new__') {
+        scoreBackup(); state.scoreLocalTrash=state.scoreLocalTrash||[]; state.scoreLocalTrash.push({test,students:[],draft:(state.scoreDrafts||{})[test.code]});
+        old.draftTest=null;old.selectedTestCode='';delete (state.scoreDrafts||{})[test.code];saveData();renderLayout();return;
+    }
     scoreSyncBusy=true;
     try {
         scoreBackup(); const key=await getGoogleAdminKey(); if(!key) return;
@@ -104,6 +108,10 @@ window.restoreScoreTest=async function(code,local) {
     if(scoreSyncBusy) return;
     if(local) {
         const entry=(state.scoreLocalTrash||[]).find(x=>x.test.code===code); if(!entry) return;
+        if(code==='__new__') {
+            if(state.scoreBook.draftTest) return showToast('Hãy lưu bài mới đang nhập trước.','error');
+            state.scoreBook.draftTest=entry.test;state.scoreBook.selectedTestCode=code;state.scoreBook.selectedSubject=entry.test.subjectCode;state.scoreDrafts=state.scoreDrafts||{};if(entry.draft)state.scoreDrafts[code]=entry.draft;state.scoreLocalTrash=state.scoreLocalTrash.filter(x=>x!==entry);saveData();renderLayout();return;
+        }
         if(state.scoreBook.tests.some(t=>t.code===code)) return showToast('Mã bài đã tồn tại.','error');
         const restored=scoreMerge(state.scoreBook,{tests:[entry.test],students:entry.students}); state.scoreBook=restored;
         if(entry.draft) {state.scoreDrafts=state.scoreDrafts||{};state.scoreDrafts[code]=entry.draft;}
@@ -117,4 +125,4 @@ function scoreTrashHtml() {
     const list=[...(state.scoreBook.deletedTests||[]).map(t=>({...t,local:false})),...(state.scoreLocalTrash||[]).map(x=>({...x.test,local:true}))];
     return '<div class="flex gap-3 flex-wrap"><button class="p-3 border rounded-xl" onclick="downloadScoreBackup()">Tải bản sao lưu điểm</button></div><details class="mt-3"><summary>Bài đã xóa ('+list.length+')</summary>'+list.map(t=>'<div class="p-3">'+escapeHtmlText(t.title)+' <button class="text-blue-700 font-bold" onclick="restoreScoreTest('+escapeHtmlText(JSON.stringify(t.code))+','+t.local+')">Khôi phục</button></div>').join('')+'</details>';
 }
-setInterval(()=>{if(document.visibilityState==='visible' && state.currentTab==='diem-hoc-tap' && !scoreSyncBusy) loadScoreBookFromGoogle({silent:true});},60000);
+setInterval(()=>{if(document.visibilityState==='visible' && state.currentTab==='diem-hoc-tap' && (!window.learningSection || window.learningSection==='scores') && state.scoreBook.loaded && !scoreSyncBusy) loadScoreBookFromGoogle({silent:true});},60000);

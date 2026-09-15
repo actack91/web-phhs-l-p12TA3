@@ -1189,6 +1189,7 @@ function renderHomework(){
  const subjects={TOAN:"Toán",VAN:"Văn",ANH:"Anh",LY:"Lý",HOA:"Hoá",SINH:"Sinh"};
  return `<section class="bg-white rounded-3xl border border-slate-200 p-5 md:p-7 space-y-5">
  <h2 class="font-black text-2xl">Bài tập về nhà</h2>
+ <p><a href="btvn.html" target="_blank" rel="noopener noreferrer" class="text-blue-700 font-bold underline">Xem bảng giao BTVN của lớp</a> · <a href="btvn.html?admin=1" target="_blank" rel="noopener noreferrer" class="text-blue-700 font-bold underline">Quản lý người đăng BTVN</a></p>
  <div class="flex flex-wrap gap-3">
  <button ${disabled} onclick="loadHomework()" class="${button} text-emerald-700">Tải BTVN mới nhất</button>
  <button ${disabled} onclick="openConnectedGoogleSheet()" class="${button} text-blue-700">Mở Google Sheet</button></div>
@@ -1236,7 +1237,7 @@ async function saveHomeworkUI(){
 function renderParentHomework(studentCode){
  const rows=(window.parentHomework||[]).filter(r=>String(r.studentCode)===String(studentCode));
  const esc=escapeHtmlText,labels=homeworkStatusLabels(),subjects={TOAN:"Toán",VAN:"Văn",ANH:"Anh",LY:"Lý",HOA:"Hoá",SINH:"Sinh"};
- return '<section class="bg-white rounded-3xl p-4 md:p-6 border border-slate-200"><h3 class="font-black text-xl text-slate-800 mb-4">Bài tập về nhà</h3>'+
+ return '<section class="bg-white rounded-3xl p-4 md:p-6 border border-slate-200"><h3 class="font-black text-xl text-slate-800 mb-4">Bài tập về nhà</h3><p class="mb-4"><a href="btvn.html" target="_blank" rel="noopener noreferrer" class="text-blue-700 font-bold underline">Xem bài tập được giao cho cả lớp</a></p>'+
  (!rows.length?'<p class="text-slate-500">Chưa có ghi nhận BTVN từ giáo viên.</p>':
  '<div class="overflow-x-auto"><table class="w-full min-w-[650px] text-sm"><thead class="bg-slate-50"><tr>'+["Ngày kiểm tra","Môn","Bài tập","Tình trạng","Ghi chú"].map(x=>'<th class="p-3 text-left">'+x+'</th>').join("")+'</tr></thead><tbody>'+
  rows.map(r=>'<tr class="border-b border-slate-100"><td class="p-3">'+esc(formatDateForDisplay(r.date))+'</td><td class="p-3">'+esc(subjects[r.subjectCode]||r.subjectCode)+'</td><td class="p-3">'+esc(r.title||"—")+'</td><td class="p-3 font-bold">'+esc(labels[r.status]||"Chưa ghi nhận")+(r.status==="supplemented"?'<div class="text-xs font-normal mt-1">Ban đầu: '+esc(labels[r.initialStatus]||"—")+(r.supplementedAt?'<br>Bổ sung: '+esc(new Date(r.supplementedAt).toLocaleDateString("vi-VN")):"")+'</div>':"")+'</td><td class="p-3 whitespace-pre-line">'+esc(r.note||"—")+'</td></tr>').join("")+'</tbody></table></div>')+'</section>';
@@ -3428,6 +3429,7 @@ window.saveScoreBook = async function saveScoreBook() {
                 { id: 'qua-tang', label: 'Danh mục Quà tặng', icon: 'ph-gift' },
                 { id: 'tich-diem', label: 'Tích điểm', icon: 'ph-star' },
                 { id: 'du-lieu', label: 'Dữ liệu & Đồng bộ', icon: 'ph-cloud-arrow-down' },
+                { id: 'btvn-quyen', label: 'Người đăng BTVN', icon: 'ph-notebook' },
                 { id: 'nguy-hiem', label: 'Vùng nguy hiểm', icon: 'ph-warning-octagon' }
             ].map(tab => {
                 const isActive = state.settingsTab === tab.id;
@@ -3435,7 +3437,9 @@ window.saveScoreBook = async function saveScoreBook() {
             }).join('');
 
             let contentHtml = '';
-            if (state.settingsTab === 'thong-tin') {
+            if (state.settingsTab === 'btvn-quyen') {
+                contentHtml = `<div class="bg-white rounded-2xl p-6"><h2 class="font-bold text-xl">Người đăng bài tập về nhà</h2><p class="my-4">Chọn một học sinh phụ trách. GVCN có thể thu hồi quyền và khôi phục bài sửa nhầm.</p><a href="btvn.html?admin=1" target="_blank" rel="noopener noreferrer" class="text-blue-700 font-bold underline">Mở quản lý BTVN</a></div>`;
+            } else if (state.settingsTab === 'thong-tin') {
                 contentHtml = `
                     <div class="bg-white rounded-[2rem] p-6 md:p-8 shadow-sm border border-slate-100 flex flex-col md:flex-row gap-8 items-start">
                         <div class="w-full md:w-1/3 text-center">

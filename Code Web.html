@@ -7157,8 +7157,10 @@ window.playBellSound = function(idx = 0) {
         window.onDropSeat = function(e, seatId) {
             e.preventDefault();
             e.currentTarget.classList.remove('bg-blue-50', 'border-blue-400', 'ring-4', 'ring-blue-100');
-            const studentId = parseInt(e.dataTransfer.getData('text/plain'));
-            if (!studentId) return;
+            const draggedId = e.dataTransfer.getData('text/plain');
+            const student = state.students.find(s => String(s.id) === draggedId);
+            if (!student) return;
+            const studentId = student.id;
 
             // Xóa học sinh khỏi vị trí cũ
             for (const key in state.seatingChart) {
@@ -7173,8 +7175,10 @@ window.playBellSound = function(idx = 0) {
         window.onDragOverList = function(e) { e.preventDefault(); };
         window.onDropList = function(e) {
             e.preventDefault();
-            const studentId = parseInt(e.dataTransfer.getData('text/plain'));
-            if (!studentId) return;
+            const draggedId = e.dataTransfer.getData('text/plain');
+            const student = state.students.find(s => String(s.id) === draggedId);
+            if (!student) return;
+            const studentId = student.id;
             for (const key in state.seatingChart) {
                 if (state.seatingChart[key] === studentId) delete state.seatingChart[key];
             }

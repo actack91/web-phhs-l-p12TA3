@@ -1234,14 +1234,51 @@ async function saveHomeworkUI(){
  finally{h.busy=false;renderLayout();}
 }
 
-function renderParentHomework(studentCode){
- const rows=(window.parentHomework||[]).filter(r=>String(r.studentCode)===String(studentCode));
- const esc=escapeHtmlText,labels=homeworkStatusLabels(),subjects={TOAN:"Toán",VAN:"Văn",ANH:"Anh",LY:"Lý",HOA:"Hoá",SINH:"Sinh"};
- return '<section class="bg-white rounded-3xl p-4 md:p-6 border border-slate-200"><h3 class="font-black text-xl text-slate-800 mb-4">Bài tập về nhà</h3><p class="mb-4"><a href="btvn.html" target="_blank" rel="noopener noreferrer" class="text-blue-700 font-bold underline">Xem bài tập được giao cho cả lớp</a></p>'+
- (!rows.length?'<p class="text-slate-500">Chưa có ghi nhận BTVN từ giáo viên.</p>':
- '<div class="overflow-x-auto"><table class="w-full min-w-[650px] text-sm"><thead class="bg-slate-50"><tr>'+["Ngày kiểm tra","Môn","Bài tập","Tình trạng","Ghi chú"].map(x=>'<th class="p-3 text-left">'+x+'</th>').join("")+'</tr></thead><tbody>'+
- rows.map(r=>'<tr class="border-b border-slate-100"><td class="p-3">'+esc(formatDateForDisplay(r.date))+'</td><td class="p-3">'+esc(subjects[r.subjectCode]||r.subjectCode)+'</td><td class="p-3">'+esc(r.title||"—")+'</td><td class="p-3 font-bold">'+esc(labels[r.status]||"Chưa ghi nhận")+(r.status==="supplemented"?'<div class="text-xs font-normal mt-1">Ban đầu: '+esc(labels[r.initialStatus]||"—")+(r.supplementedAt?'<br>Bổ sung: '+esc(new Date(r.supplementedAt).toLocaleDateString("vi-VN")):"")+'</div>':"")+'</td><td class="p-3 whitespace-pre-line">'+esc(r.note||"—")+'</td></tr>').join("")+'</tbody></table></div>')+'</section>';
+function parentHomeworkDay(value) {
+ const date=value?new Date(value):new Date();
+ if(Number.isNaN(date.getTime()))return '';
+ const parts=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Ho_Chi_Minh',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(date);
+ const get=type=>parts.find(p=>p.type===type).value;
+ return get('year')+'-'+get('month')+'-'+get('day');
 }
+function parentHomeworkItems(studentCode) {
+ const subjects={TOAN:'Toán',VAN:'Văn',ANH:'Anh',LY:'Lý',HOA:'Hoá',SINH:'Sinh'};
+ const shared=(window.parentClassHomework||[]).filter(p=>!p.deleted).map(p=>({id:p.id,subject:p.subject,content:p.content,date:parentHomeworkDay(p.createdAt),due:p.due}));
+ const personal=studentCode?(window.parentHomework||[]).filter(r=>String(r.studentCode)===String(studentCode)).map((r,i)=>({id:'record-'+i,subject:subjects[r.subjectCode]||r.subjectCode,content:r.title||'BTVN',date:r.date,due:r.date,status:homeworkStatusLabels()[r.status]||'Chưa ghi nhận',note:r.note||''})):[];
+ return [...shared,...personal];
+}
+function parentHomeworkCards(items,date) {
+ const esc=escapeHtmlText;
+ const rows=items.filter(r=>!date||r.date===date||r.due===date);
+ return rows.length?rows.map(r=>`<article class="text-left rounded-2xl border border-indigo-100 bg-indigo-50/40 p-4 mt-3"><div class="flex flex-wrap justify-between gap-2"><strong class="text-indigo-800">${esc(r.subject)}</strong><span class="text-xs text-slate-600">${r.due?'Hạn nộp: '+esc(formatDateForDisplay(r.due)):''}</span></div><p class="text-slate-800 whitespace-pre-wrap break-words mt-2">${esc(r.content)}</p><p class="text-xs text-slate-500 mt-2">Ngày ghi nhận: ${esc(formatDateForDisplay(r.date))}</p>${r.status?`<p class="text-sm font-bold mt-2">${esc(r.status)}</p>`:''}${r.note?`<p class="text-sm text-slate-600 whitespace-pre-wrap mt-1">${esc(r.note)}</p>`:''}</article>`).join(''):'<p class="text-sm text-slate-500 py-4">Không có BTVN được giao hoặc đến hạn trong ngày này.</p>';
+}
+function renderParentHomework(studentCode) {
+ const code=studentCode||'';
+ window.setTimeout(()=>loadParentClassHomework(),0);
+ return `<section id="parent-homework-board" data-student-code="${escapeHtmlText(code)}" class="bg-white rounded-3xl p-4 md:p-6 border border-slate-200 text-left"><h3 class="font-black text-xl text-slate-800">BTVN hôm nay · ${escapeHtmlText(formatDateForDisplay(parentHomeworkDay()))}</h3><p class="text-xs text-slate-500 mt-2">Bài giao trong ngày và bài đến hạn hôm nay.</p><div id="parent-homework-today">${parentHomeworkCards(parentHomeworkItems(code),parentHomeworkDay())}</div><p id="parent-homework-load" role="status" class="text-sm text-slate-500 mt-2">Đang tải bài tập của lớp…</p><details class="mt-3 border-t border-slate-200 pt-3"><summary class="cursor-pointer font-bold text-indigo-700 py-2">Xem lịch sử BTVN các ngày</summary><label class="block text-sm font-bold mt-3">Chọn ngày<input id="parent-homework-date" type="date" value="${parentHomeworkDay()}" onchange="updateParentHomeworkHistory(this.value)" class="block w-full border border-slate-300 rounded-xl p-3 my-2"></label><button type="button" onclick="document.getElementById('parent-homework-date').value='';updateParentHomeworkHistory('')" class="text-indigo-700 font-bold underline text-sm">Xem tất cả các ngày</button><div id="parent-homework-history"></div></details></section>`;
+}
+function updateParentHomeworkHistory(date) {
+ const board=document.getElementById('parent-homework-board');if(!board)return;
+ const items=parentHomeworkItems(board.dataset.studentCode);
+ if(date){document.getElementById('parent-homework-history').innerHTML=parentHomeworkCards(items,date);return;}
+ const dates=[...new Set(items.flatMap(r=>[r.date,r.due]).filter(Boolean))].sort().reverse();
+ document.getElementById('parent-homework-history').innerHTML=dates.length?dates.map(d=>'<h4 class="font-bold mt-5">'+escapeHtmlText(formatDateForDisplay(d))+'</h4>'+parentHomeworkCards(items,d)).join(''):'<p class="text-sm text-slate-500 py-4">Chưa có lịch sử BTVN.</p>';
+}
+async function loadParentClassHomework() {
+ const board=document.getElementById('parent-homework-board');if(!board)return;
+ try {
+ if(!window.parentHomeworkLoading)window.parentHomeworkLoading=homeworkRequest('hw-list',{}).finally(()=>{window.parentHomeworkLoading=null;});
+ const response=await window.parentHomeworkLoading;window.parentClassHomework=response.posts||[];
+ if(document.getElementById('parent-homework-board')!==board)return;
+ document.getElementById('parent-homework-load').textContent='';
+ }catch(error){
+ if(document.getElementById('parent-homework-board')!==board)return;
+ document.getElementById('parent-homework-load').innerHTML='Chưa tải được BTVN mới nhất. <button type="button" class="text-indigo-700 underline font-bold" onclick="loadParentClassHomework()">Thử lại</button>';
+ }
+ document.getElementById('parent-homework-today').innerHTML=parentHomeworkCards(parentHomeworkItems(board.dataset.studentCode),parentHomeworkDay());
+ updateParentHomeworkHistory(document.getElementById('parent-homework-date').value);
+}
+
 
 function renderViewScoreEntry() {
     const book = state.scoreBook || {};
@@ -4873,8 +4910,8 @@ window.openEditGroupModal = function(id) {
                 ? ""
                 : '<button onclick="closeModal(\'parent-lookup-modal\')" class="absolute top-6 right-6 text-slate-400 hover:bg-slate-100 rounded-full p-2 transition-colors"><i class="ph-bold ph-x text-xl"></i></button>';
             document.getElementById('modal-container').innerHTML = `
-                <div class="fixed inset-0 ${overlayBackground} z-[100] flex items-center justify-center p-4 animate-fade-in" id="parent-lookup-modal">
-                    <div class="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-md overflow-hidden flex flex-col relative text-center pt-12 pb-10 px-8">
+                <div class="fixed inset-0 ${overlayBackground} z-[100] overflow-y-auto p-4 animate-fade-in" id="parent-lookup-modal"><div class="w-full max-w-3xl mx-auto py-6">${renderParentHomework('')}
+                    <div class="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-md mx-auto mt-6 overflow-hidden flex flex-col relative text-center pt-8 pb-8 px-8">
                         ${closeButton}
                         <div class="w-24 h-24 bg-gradient-to-br from-orange-100 to-amber-100 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner"><i class="ph-fill ph-student text-5xl text-orange-500"></i></div>
                         <h3 class="font-black text-slate-800 text-3xl mb-2 tracking-tight">Cổng Phụ Huynh</h3>
@@ -4882,7 +4919,7 @@ window.openEditGroupModal = function(id) {
                         <input type="tel" inputmode="numeric" id="lookup-code-input" placeholder="VD: 12345" class="w-full px-5 py-5 bg-slate-50 border-2 border-slate-200 rounded-2xl text-2xl font-black text-center tracking-[0.12em] text-slate-800 focus:border-orange-400 outline-none mb-8 shadow-inner transition-colors" maxlength="5" autocomplete="off" onkeypress="if(event.key === 'Enter') performParentLookup()">
                         <button id="parent-lookup-submit-button" onclick="performParentLookup()" class="w-full py-4.5 bg-gradient-to-r from-orange-400 to-red-500 text-white font-black rounded-2xl shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all text-lg tracking-wider disabled:opacity-60 disabled:cursor-wait disabled:hover:translate-y-0">TRA CỨU NGAY</button>
                     </div>
-                </div>
+                </div></div>
             `;
             setTimeout(() => document.getElementById('lookup-code-input').focus(), 100);
         }
@@ -6119,7 +6156,7 @@ window.performDirectLookup = function() {
           if (parentMain) {
             const academicSection = parentMain.children[1];
             if (academicSection) academicSection.insertAdjacentHTML("beforebegin", attendanceHtml);
-            parentMain.insertAdjacentHTML("beforeend", renderParentHomework(studentCode));
+            parentMain.insertAdjacentHTML("afterbegin", renderParentHomework(studentCode));
             const commentWeek = latestTeacherComment ? String(latestTeacherComment.week || "").replace("TUAN_", "Tuần ") : "";
             const commentText = latestTeacherComment ? escapeHtmlAttr(latestTeacherComment.text) : "Chưa có nhận xét nào từ giáo viên.";
             parentMain.insertAdjacentHTML("beforeend", '<section class="bg-white rounded-3xl p-4 md:p-6 border border-slate-200"><div class="flex items-center gap-3 mb-3"><div class="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center">💬</div><div><h3 class="font-black text-xl text-slate-800">Nhận xét của giáo viên</h3>' + (commentWeek ? '<p class="text-sm text-slate-500">Nhận xét mới nhất · ' + commentWeek + '</p>' : '') + '</div></div><p class="text-slate-700 leading-7 whitespace-pre-line">' + commentText + '</p></section>');

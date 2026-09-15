@@ -1302,18 +1302,20 @@ function renderViewScoreEntry() {
     }).join("");
     const testOptions = subjectTests.map(function(test) {
         return '<option value="' + escapeHtmlText(test.code) + '" ' + (selectedTest && selectedTest.code === test.code ? "selected" : "") + ">" +
-            escapeHtmlText(test.title) + (test.date ? " · " + escapeHtmlText(test.date) : "") + "</option>";
+            escapeHtmlText(test.title) + (test.localOnly ? " · Chỉ có trên máy" : "") + (test.date ? " · " + escapeHtmlText(test.date) : "") + "</option>";
     }).join("");
 
     const scoreRowsByCode = {};
     (book.students || []).forEach(function(row) { scoreRowsByCode[String(row.studentCode || "").trim()] = row; });
-    const students = (state.students || []).filter(function(student) { return String(student.studentCode || "").trim(); });
+    const students = [...(state.students || []).filter(student => String(student.studentCode || "").trim())];
+    (book.students || []).forEach(row=>{if(!students.some(s=>String(s.studentCode)===String(row.studentCode))) students.push(row);});
     const savedScores = [];
     if (selectedTest && selectedTest.code && selectedTest.code !== "__new__") {
         students.forEach(function(student) {
             const row = scoreRowsByCode[String(student.studentCode || "").trim()];
             const entry = row && row.scores ? row.scores[selectedTest.code] : null;
-            const value = entry ? Number(String(entry.score || "").replace(",", ".")) : NaN;
+            const raw = entry ? String(entry.score ?? "").trim() : "";
+            const value = raw ? Number(raw.replace(",", ".")) : NaN;
             if (Number.isFinite(value)) savedScores.push(value);
         });
     }
@@ -1334,16 +1336,17 @@ function renderViewScoreEntry() {
         const code = String(student.studentCode || "").trim();
         const row = scoreRowsByCode[code];
         const entry = selectedTest.code && row && row.scores ? row.scores[selectedTest.code] : null;
-        const score = entry ? String(entry.score || "") : "";
-        const note = entry ? String(entry.note || "") : "";
+        const draft = ((state.scoreDrafts || {})[selectedTest.code] || {})[code];
+        const score = draft ? String(draft.score ?? "") : entry ? String(entry.score ?? "") : "";
+        const note = draft ? String(draft.note ?? "") : entry ? String(entry.note || "") : "";
         return '<tr class="score-entry-row border-b border-slate-100 last:border-0">' +
             '<td class="px-4 py-3 text-center text-sm font-bold text-slate-400">' + (index + 1) + '</td>' +
             '<td class="px-4 py-3"><div class="font-bold text-slate-800">' + escapeHtmlText(student.name || "Chưa có tên") +
             '</div><div class="text-xs text-slate-400 mt-0.5">' + escapeHtmlText(code) + '</div></td>' +
-            '<td class="px-4 py-3 w-40"><input data-score-field="score" data-student-code="' + escapeHtmlText(code) +
+            '<td class="px-4 py-3 w-40"><input oninput="scoreDraftChanged()" data-score-field="score" data-student-code="' + escapeHtmlText(code) +
             '" value="' + escapeHtmlText(score) + '" inputmode="decimal" onpaste="handleScoreGridPaste(event,' + index +
             ',0)" class="w-full px-3 py-2.5 rounded-xl border border-slate-200 bg-white text-center font-black text-blue-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none" placeholder="--"></td>' +
-            '<td class="px-4 py-3 min-w-[240px]"><input data-score-field="note" data-student-code="' + escapeHtmlText(code) +
+            '<td class="px-4 py-3 min-w-[240px]"><input oninput="scoreDraftChanged()" data-score-field="note" data-student-code="' + escapeHtmlText(code) +
             '" value="' + escapeHtmlText(note) + '" onpaste="handleScoreGridPaste(event,' + index +
             ',1)" class="w-full px-3 py-2.5 rounded-xl border border-slate-200 bg-white text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none" placeholder="Ghi chú nếu có"></td></tr>';
     }).join("") : "";
@@ -1369,11 +1372,11 @@ function renderViewScoreEntry() {
             ? '<section class="bg-white rounded-[2rem] border border-slate-200 shadow-sm overflow-hidden"><div class="p-5 md:p-6 border-b border-slate-100 flex flex-col lg:flex-row lg:items-center justify-between gap-4"><div><div class="flex items-center gap-2"><h3 class="text-xl font-black text-slate-800">' + title + '</h3>' +
               (isDraft ? '<span class="px-2.5 py-1 rounded-lg bg-amber-50 text-amber-700 text-xs font-bold border border-amber-200">Bài mới</span>' : "") +
               '</div><p class="text-sm text-slate-500 mt-1">' + (date || "Chưa chọn ngày") + ' · Dán một cột điểm từ Excel vào ô đầu tiên để điền nhanh.</p></div>' +
-              '<button id="save-score-book-button" onclick="saveScoreBook()" class="px-6 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-black shadow-md flex items-center justify-center gap-2"><i class="ph-bold ph-cloud-arrow-up"></i> Lưu điểm lên Sheet</button></div>' +
+              '<button onclick="deleteScoreTest()" class="px-4 py-3 rounded-xl border border-red-200 text-red-700 font-bold">Xóa bài kiểm tra</button><button id="save-score-book-button" onclick="saveScoreBook()" class="px-6 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-black shadow-md flex items-center justify-center gap-2"><i class="ph-bold ph-cloud-arrow-up"></i> Lưu điểm lên Sheet</button></div>' +
               '<div class="overflow-x-auto"><table class="w-full min-w-[760px]"><thead class="bg-slate-50 text-xs uppercase tracking-wide text-slate-500"><tr><th class="px-4 py-3 text-center w-16">STT</th><th class="px-4 py-3 text-left">Học sinh</th><th class="px-4 py-3 text-center">Điểm</th><th class="px-4 py-3 text-left">Ghi chú</th></tr></thead><tbody>' +
               (rowsHtml || '<tr><td colspan="4" class="p-12 text-center text-slate-400 font-bold">Chưa có học sinh để nhập điểm.</td></tr>') + '</tbody></table></div></section>'
             : '<section class="bg-white rounded-[2rem] border-2 border-dashed border-slate-200 p-12 text-center"><div class="w-16 h-16 mx-auto rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center mb-4"><i class="ph-fill ph-exam text-3xl"></i></div><h3 class="text-lg font-black text-slate-700">Chưa có bài kiểm tra môn này</h3><p class="text-sm text-slate-500 mt-1 mb-5">Tạo bài kiểm tra đầu tiên để bắt đầu nhập điểm.</p><button onclick="openNewScoreTestModal()" class="px-5 py-3 rounded-xl bg-indigo-600 text-white font-bold">Tạo bài kiểm tra</button></section>') +
-        '</div>';
+        scoreTrashHtml() + '</div>';
 }
 
 function requestScoreBookGoogle(mode, params) {
@@ -1400,40 +1403,21 @@ function requestScoreBookGoogle(mode, params) {
     });
 }
 
-window.loadScoreBookFromGoogle = async function loadScoreBookFromGoogle(options) {
-    options = options || {};
-    if (state.scoreBook && state.scoreBook.loading) return;
-    if (options.silent && state.scoreBook && state.scoreBook.loaded) return;
-    const adminKey = await getGoogleAdminKey();
-    if (!adminKey) return;
-    state.scoreBook.loading = true;
-    if (state.currentTab === "diem-hoc-tap") renderLayout();
-    requestScoreBookGoogle("score-book", { adminKey: adminKey }).then(function(response) {
-        const oldSubject = state.scoreBook.selectedSubject || "TOAN";
-        const oldTest = state.scoreBook.selectedTestCode || "";
-        state.scoreBook = response.scoreBook;
-        state.scoreBook.selectedSubject = oldSubject;
-        state.scoreBook.selectedTestCode = (state.scoreBook.tests || []).some(function(test) { return test.code === oldTest; }) ? oldTest : "";
-        state.scoreBook.draftTest = null; state.scoreBook.loaded = true; state.scoreBook.loading = false; state.scoreBook.updatedAt = response.updatedAt || "";
-        rememberGoogleAdminKey(adminKey); saveData();
-        if (state.currentTab === "diem-hoc-tap") renderLayout();
-        if (!options.silent) showToast("Đã đồng bộ dữ liệu điểm từ Google Sheet.", "success");
-    }).catch(function(error) {
-        state.scoreBook.loading = false;
-        if (state.currentTab === "diem-hoc-tap") renderLayout();
-        showToast(error.message || "Không thể tải dữ liệu điểm.", "error");
-    });
-};
-
 window.selectScoreSubject = function selectScoreSubject(subjectCode) {
+    if(scoreSyncBusy) return;
+    if(state.scoreBook.draftTest) return showToast("Hãy lưu bài mới trước khi đổi bài hoặc môn.", "error");
     state.scoreBook.selectedSubject = subjectCode; state.scoreBook.selectedTestCode = ""; state.scoreBook.draftTest = null; renderLayout();
 };
 
 window.selectScoreTest = function selectScoreTest(testCode) {
+    if(scoreSyncBusy) return;
+    if(state.scoreBook.draftTest) return showToast("Hãy lưu bài mới trước khi đổi bài hoặc môn.", "error");
     state.scoreBook.selectedTestCode = testCode; state.scoreBook.draftTest = null; renderLayout();
 };
 
 window.openNewScoreTestModal = function openNewScoreTestModal() {
+    if(scoreSyncBusy) return;
+    if(state.scoreBook.draftTest) return showToast("Hãy lưu bài mới đang nhập trước.", "error");
     const subjectCode = (state.scoreBook && state.scoreBook.selectedSubject) || "TOAN";
     const today = new Date();
     const dateValue = today.getFullYear() + "-" + String(today.getMonth() + 1).padStart(2, "0") + "-" + String(today.getDate()).padStart(2, "0");
@@ -1492,45 +1476,130 @@ window.handleScoreGridPaste = function handleScoreGridPaste(event, startRow, sta
             if (input) input.value = String(value || "").trim();
         });
     });
+    scoreDraftChanged();
 };
 
-window.saveScoreBook = async function saveScoreBook() {
-    const book = state.scoreBook || {};
-    const selectedTest = book.selectedTestCode === "__new__" ? book.draftTest : (book.tests || []).find(function(test) { return test.code === book.selectedTestCode; });
-    if (!selectedTest) return showToast("Vui lòng chọn bài kiểm tra.", "error");
-    const adminKey = await getGoogleAdminKey(); if (!adminKey) return;
-    const inputs = Array.from(document.querySelectorAll('[data-score-field="score"]'));
-    const scores = []; let invalidStudent = "";
-    inputs.forEach(function(input) {
-        const code = input.dataset.studentCode;
-        const raw = input.value.trim().replace(",", ".");
-        const noteInput = document.querySelector('[data-score-field="note"][data-student-code="' + code + '"]');
-        if (raw) {
-            const value = Number(raw);
-            if (!Number.isFinite(value) || value < 0 || value > 10) {
-                input.classList.add("border-red-400", "bg-red-50"); if (!invalidStudent) invalidStudent = code;
-            } else input.classList.remove("border-red-400", "bg-red-50");
-        }
-        scores.push({ studentCode: code, score: raw, note: noteInput ? noteInput.value.trim() : "" });
+// Google Sheets is shared storage; local drafts are never silently discarded.
+let scoreSyncBusy = false;
+function scoreBackup() {
+    localStorage.setItem('scoreBookRecoveryV1', JSON.stringify({at:new Date().toISOString(), book:state.scoreBook, drafts:state.scoreDrafts || {}}));
+}
+function scoreMerge(remote, previous, removedCode) {
+    const gone = new Set((remote.deletedTests || []).map(t=>t.code));
+    const known = new Set((remote.tests || []).map(t=>t.code));
+    const local = (previous.tests || []).filter(t=>!known.has(t.code) && !gone.has(t.code) && t.code!==removedCode);
+    remote.tests = [...remote.tests, ...local.map(t=>({...t,localOnly:true}))];
+    const byCode = Object.fromEntries((remote.students || []).map(s=>[String(s.studentCode),s]));
+    (previous.students || []).forEach(s=>{
+        if(!byCode[String(s.studentCode)]) { const row={...s,scores:{}}; remote.students.push(row); byCode[String(s.studentCode)]=row; }
+        local.forEach(t=>{if(s.scores && s.scores[t.code]) byCode[String(s.studentCode)].scores[t.code]=s.scores[t.code];});
     });
-    if (invalidStudent) return showToast("Điểm phải nằm trong khoảng 0 đến 10. Vui lòng kiểm tra học sinh " + invalidStudent + ".", "error");
-    const button = document.getElementById("save-score-book-button");
-    if (button) { button.disabled = true; button.innerHTML = '<i class="ph-bold ph-spinner-gap animate-spin"></i> Đang lưu...'; }
-    requestScoreBookGoogle("score-book-save", { adminKey: adminKey, scoreData: JSON.stringify({
-        test: { code: selectedTest.code === "__new__" ? "" : selectedTest.code, subjectCode: selectedTest.subjectCode, title: selectedTest.title, date: selectedTest.date },
-        scores: scores
-    }) }).then(function(response) {
-        const subjectCode = selectedTest.subjectCode;
-        state.scoreBook = response.scoreBook; state.scoreBook.selectedSubject = subjectCode;
-        state.scoreBook.selectedTestCode = response.scoreBook.selectedTestCode || ""; state.scoreBook.draftTest = null;
-        state.scoreBook.loaded = true; state.scoreBook.loading = false; state.scoreBook.updatedAt = response.updatedAt || "";
-        rememberGoogleAdminKey(adminKey); saveData(); renderLayout();
-        showToast("Đã lưu điểm lên Google Sheet. Trang PHHS sẽ đọc dữ liệu mới.", "success");
-    }).catch(function(error) {
-        if (button && button.isConnected) { button.disabled = false; button.innerHTML = '<i class="ph-bold ph-cloud-arrow-up"></i> Lưu điểm lên Sheet'; }
-        showToast(error.message || "Không thể lưu điểm.", "error");
+    return remote;
+}
+function scoreApply(response, old, removedCode, selection) {
+    state.scoreBook=scoreMerge(response.scoreBook,old,removedCode);
+    Object.assign(state.scoreBook,{selectedSubject:old.selectedSubject||'TOAN',selectedTestCode:selection || old.selectedTestCode||'',loaded:true,loading:false,updatedAt:response.updatedAt});
+    saveData(); renderLayout();
+}
+window.scoreDraftChanged=function() {
+    const code=state.scoreBook.selectedTestCode;
+    state.scoreDrafts=state.scoreDrafts||{};
+    const records={};
+    document.querySelectorAll('[data-score-field]').forEach(input=>{
+        const id=input.dataset.studentCode;
+        records[id]=records[id]||{}; records[id][input.dataset.scoreField]=input.value;
     });
+    state.scoreDrafts[code]=records; saveData();
 };
+window.downloadScoreBackup=function() {
+    scoreBackup();
+    const url=URL.createObjectURL(new Blob([localStorage.getItem('scoreBookRecoveryV1')],{type:'application/json'}));
+    const a=document.createElement('a'); a.href=url; a.download='sao-luu-diem-'+Date.now()+'.json'; a.click(); setTimeout(()=>URL.revokeObjectURL(url),1000);
+};
+window.loadScoreBookFromGoogle=async function(options={}) {
+    if(scoreSyncBusy) return;
+    const dirty=Object.keys(state.scoreDrafts||{}).length || state.scoreBook.draftTest;
+    if(dirty) { if(!options.silent) showToast('Có điểm đang nhập. Hãy lưu điểm trước khi tải lại; bản nhập vẫn được giữ.','error'); return; }
+    scoreSyncBusy=true;
+    try {
+        const key=await getGoogleAdminKey(); if(!key) return;
+        scoreBackup(); const old=state.scoreBook;
+        const result=await requestScoreBookGoogle('score-book',{adminKey:key});
+        // A user may start typing while the request is in flight.
+        if(Object.keys(state.scoreDrafts||{}).length || state.scoreBook.draftTest) return;
+        scoreApply(result,old); rememberGoogleAdminKey(key);
+        if(!options.silent) showToast('Đã cập nhật từ Sheet. Các bài chỉ có trên máy vẫn được giữ.','success');
+    } catch(e) { if(!options.silent) showToast(e.message,'error'); }
+    finally {scoreSyncBusy=false;}
+};
+window.saveScoreBook=async function() {
+    if(scoreSyncBusy) return;
+    const old=state.scoreBook, test=old.selectedTestCode==='__new__'?old.draftTest:(old.tests||[]).find(t=>t.code===old.selectedTestCode);
+    if(!test) return showToast('Vui lòng chọn bài kiểm tra.','error');
+    scoreDraftChanged(); scoreBackup();
+    const scores=Object.entries(state.scoreDrafts[test.code]||{}).map(([studentCode,v])=>({studentCode,score:String(v.score||'').trim().replace(',','.'),note:String(v.note||'').trim()}));
+    if(scores.some(s=>s.score && (!Number.isFinite(Number(s.score)) || Number(s.score)<0 || Number(s.score)>10))) return showToast('Điểm phải từ 0 đến 10.','error');
+    scoreSyncBusy=true;
+    const button=document.getElementById('save-score-book-button');
+    if(button) {button.disabled=true;button.textContent='Đang lưu lên Sheet…';}
+    document.querySelectorAll('[data-score-field]').forEach(e=>e.disabled=true);
+    try {
+        const key=await getGoogleAdminKey(); if(!key) return;
+        const payload={test:{...test,code:test.code==='__new__'?'':test.code},scores};
+        let result;
+        try {result=await requestScoreBookGoogle('score-book-save',{adminKey:key,scoreData:JSON.stringify(payload)});}
+        catch(e) {
+            if(!/Không tìm thấy bài kiểm tra cần cập nhật/.test(e.message)) throw e;
+            if(!confirm('Bài “'+test.title+'” chỉ còn trên máy, không có trong Sheet. Tạo lại bài trên Sheet với toàn bộ điểm đang hiển thị?')) return;
+            payload.test.recoverMissing=true; delete payload.test.revision;
+            result=await requestScoreBookGoogle('score-book-save',{adminKey:key,scoreData:JSON.stringify(payload)});
+        }
+        delete state.scoreDrafts[test.code];
+        scoreApply(result,old,test.code,result.scoreBook.selectedTestCode);
+        rememberGoogleAdminKey(key); showToast('Đã lưu lên Google Sheets. PHHS sẽ đọc được điểm này.','success');
+    } catch(e) {showToast(e.message+' Bản nhập vẫn được giữ trên máy.','error');}
+    finally {scoreSyncBusy=false;renderLayout();}
+};
+window.deleteScoreTest=async function() {
+    if(scoreSyncBusy) return;
+    const old=state.scoreBook, test=(old.tests||[]).find(t=>t.code===old.selectedTestCode);
+    if(!test) return;
+    if(!confirm('Xóa bài “'+test.title+'”? Có thể khôi phục trong mục Bài đã xóa.')) return;
+    scoreSyncBusy=true;
+    try {
+        scoreBackup(); const key=await getGoogleAdminKey(); if(!key) return;
+        const current=await requestScoreBookGoogle('score-book',{adminKey:key});
+        if(current.scoreBook.tests.some(t=>t.code===test.code)) {
+            const result=await requestScoreBookGoogle('score-archive',{adminKey:key,testCode:test.code,revision:test.revision||''});
+            delete (state.scoreDrafts||{})[test.code]; scoreApply(result,old,test.code);
+        } else {
+            state.scoreLocalTrash=state.scoreLocalTrash||[];
+            state.scoreLocalTrash.push({test,students:JSON.parse(JSON.stringify(old.students)),draft:(state.scoreDrafts||{})[test.code]});
+            old.tests=old.tests.filter(t=>t.code!==test.code); delete (state.scoreDrafts||{})[test.code];
+            saveData(); renderLayout();
+        }
+        showToast('Đã xóa bài; có thể khôi phục.','success');
+    } catch(e){showToast(e.message,'error');} finally {scoreSyncBusy=false;}
+};
+window.restoreScoreTest=async function(code,local) {
+    if(scoreSyncBusy) return;
+    if(local) {
+        const entry=(state.scoreLocalTrash||[]).find(x=>x.test.code===code); if(!entry) return;
+        if(state.scoreBook.tests.some(t=>t.code===code)) return showToast('Mã bài đã tồn tại.','error');
+        const restored=scoreMerge(state.scoreBook,{tests:[entry.test],students:entry.students}); state.scoreBook=restored;
+        if(entry.draft) {state.scoreDrafts=state.scoreDrafts||{};state.scoreDrafts[code]=entry.draft;}
+        state.scoreLocalTrash=state.scoreLocalTrash.filter(x=>x!==entry);saveData();renderLayout();return;
+    }
+    scoreSyncBusy=true;
+    try {const key=await getGoogleAdminKey();if(!key)return;scoreBackup();scoreApply(await requestScoreBookGoogle('score-restore',{adminKey:key,testCode:code}),state.scoreBook);}
+    catch(e){showToast(e.message,'error');}finally{scoreSyncBusy=false;}
+};
+function scoreTrashHtml() {
+    const list=[...(state.scoreBook.deletedTests||[]).map(t=>({...t,local:false})),...(state.scoreLocalTrash||[]).map(x=>({...x.test,local:true}))];
+    return '<div class="flex gap-3 flex-wrap"><button class="p-3 border rounded-xl" onclick="downloadScoreBackup()">Tải bản sao lưu điểm</button></div><details class="mt-3"><summary>Bài đã xóa ('+list.length+')</summary>'+list.map(t=>'<div class="p-3">'+escapeHtmlText(t.title)+' <button class="text-blue-700 font-bold" onclick="restoreScoreTest('+escapeHtmlText(JSON.stringify(t.code))+','+t.local+')">Khôi phục</button></div>').join('')+'</details>';
+}
+setInterval(()=>{if(document.visibilityState==='visible' && state.currentTab==='diem-hoc-tap' && state.scoreBook.loaded && !scoreSyncBusy) loadScoreBookFromGoogle({silent:true});},60000);
+
 
         function renderViewTichDiem() {
             const pf = state.pointsForm;

@@ -142,7 +142,7 @@
     currentTab: 'tong-quan',
     auth: { loggedIn: true, role: 'gvcn' }, 
             theme: { month: "CHỦ ĐIỂM THÁNG", title: "CHUYẾN TÀU THANH XUÂN", bannerUrl: "", bannerColorClass: "from-[#1e1b4b] to-[#312e81]" },
-            admin: { name: "Giáo Viên", role: "Giáo viên chủ nhiệm", avatarUrl: "", className: "LỚP 12A1", classAvatarUrl: "" },
+            admin: { name: "Giáo Viên", role: "Giáo viên chủ nhiệm", avatarUrl: "", className: "LỚP 12TA3", classAvatarUrl: "" },
             tasks: [], 
             journeys: [],
             settings: { sidebarPosition: 'left', deductStarsOnRedeem: true },
@@ -266,7 +266,9 @@
             if (!state.theme.bannerColorClass) state.theme.bannerColorClass = "from-[#1e1b4b] to-[#312e81]";
             if (state.theme.teacherMsgTitle === "CÔ THÙY NHẮN") state.theme.teacherMsgTitle = "Thầy/cô muốn gửi gắm";
             if (state.theme.teacherMsgSign === "Cô Đỗ Thị Thùy") state.theme.teacherMsgSign = "";
-            if (!state.admin) state.admin = { name: "Giáo Viên", role: "Giáo viên chủ nhiệm", avatarUrl: "", className: "LỚP 12A1", classAvatarUrl: "" };
+            if (!state.admin) state.admin = { name: "Giáo Viên", role: "Giáo viên chủ nhiệm", avatarUrl: "", className: "LỚP 12TA3", classAvatarUrl: "" };
+            // Repair the template name retained in older browser data, without resetting class data.
+            if (!String(state.admin.className || '').trim() || /^(?:LỚP\s*)?12A1$/i.test(String(state.admin.className).trim())) state.admin.className = 'LỚP 12TA3';
             if (!state.settings) state.settings = { sidebarPosition: 'left', deductStarsOnRedeem: true };
             if (!state.attendanceRecords) state.attendanceRecords = {};
             if (!state.scores) state.scores = [];
@@ -816,7 +818,7 @@ window.closeModal = function(id) {
                         <!-- KHỐI 6: Hành Trình Lớp -->
                         <div class="xl:col-span-6 bg-white rounded-[2rem] p-6 md:p-8 shadow-sm border border-slate-100 flex flex-col relative min-h-[350px]">
                             <div class="flex justify-between items-center mb-6">
-                                <h3 class="font-black text-lg md:text-xl text-slate-800 flex items-center gap-2">🚂 HÀNH TRÌNH LỚP ${state.admin.className || '12A1'} TRƯỞNG THÀNH</h3>
+                                <h3 class="font-black text-lg md:text-xl text-slate-800 flex items-center gap-2">🚂 HÀNH TRÌNH LỚP ${state.admin.className || '12TA3'} TRƯỞNG THÀNH</h3>
                                 <button onclick="openJourneyModal()" class="text-xs font-bold bg-emerald-50 text-emerald-600 px-3 py-1.5 rounded-xl hover:bg-emerald-100 transition-colors flex items-center gap-1.5 shadow-sm border border-emerald-100">
                                     <i class="ph-bold ph-plus"></i> Thêm cột mốc
                                 </button>
@@ -8179,7 +8181,7 @@ window.playBellSound = function(idx = 0) {
                                         <div class="flex items-center gap-2 mb-4">
                                             <span class="bg-white/20 backdrop-blur-md px-4 py-2 rounded-full text-xs font-black uppercase tracking-widest border border-white/30 flex items-center gap-1.5"><i class="ph-fill ph-stars text-yellow-300"></i> Không Gian Học Tập</span>
                                         </div>
-                                        <h1 class="text-6xl font-black tracking-tight mb-4 drop-shadow-lg">${state.admin.className || 'LỚP 12A1'}</h1>
+                                        <h1 class="text-6xl font-black tracking-tight mb-4 drop-shadow-lg">${state.admin.className || 'LỚP 12TA3'}</h1>
                                         <p class="text-indigo-100 font-medium text-base max-w-2xl leading-relaxed drop-shadow-md">Nơi gieo mầm tri thức và lưu giữ những kỷ niệm thanh xuân rực rỡ nhất của tuổi học trò.</p>
                                     </div>
                                 </div>
@@ -8384,7 +8386,7 @@ window.renderLoginScreen = function() {
 
                                 <div class="absolute inset-0 bg-gradient-to-t from-[#1e1b4b]/90 via-[#1e1b4b]/20 to-transparent flex flex-col justify-end p-6 z-10 pointer-events-none">
                                     <span class="bg-amber-400 text-[#1e1b4b] text-[10px] font-black px-3 py-1.5 rounded-lg w-max mb-3 tracking-widest shadow-sm">KHÔNG GIAN HỌC TẬP</span>
-                                    <h1 class="text-white text-3xl font-black mb-2 shadow-sm">${state.admin.className || 'LỚP 12A1'}</h1>
+                                    <h1 class="text-white text-3xl font-black mb-2 shadow-sm">${state.admin.className || 'LỚP 12TA3'}</h1>
                                     <p class="text-blue-50 text-xs font-medium leading-relaxed opacity-90">Nơi gieo mầm tri thức và lưu giữ những kỷ niệm thanh xuân rực rỡ nhất của tuổi học trò.</p>
                                 </div>
                             </div>

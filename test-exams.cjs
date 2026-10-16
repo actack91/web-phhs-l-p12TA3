@@ -1,0 +1,43 @@
+const fs=require('fs'),vm=require('vm'),assert=require('node:assert/strict'),crypto=require('crypto');
+const src=fs.readFileSync(__dirname+'/ExamReports.gs','utf8');
+const sheets={};let active=true;
+function makeSheet(){const rows=[];return {rows,setFrozenRows(){},getDataRange(){return {getDisplayValues:()=>rows.length?rows.map(r=>r.map(v=>String(v??''))):[['']]};},appendRow(r){rows.push(r.slice());},getRange(r,c,h,w){if(typeof r==='string')return {setNumberFormat(){}};return {setValues(v){for(let i=0;i<h;i++){rows[r+i-1]||=[];for(let j=0;j<w;j++)rows[r+i-1][c+j-1]=v[i][j];}},setNumberFormat(){}};}};}
+const roster=[{studentCode:'001',name:'Student A',khoiThi:'A01'},{studentCode:'002',name:'Student B',khoiThi:'A01'},{studentCode:'003',name:'Student C',khoiThi:'A00'}];
+const ctx={SpreadsheetApp:{getActiveSpreadsheet:()=>({getSheetByName:n=>sheets[n],insertSheet:n=>sheets[n]=makeSheet()}),flush(){}},LockService:{getScriptLock:()=>({waitLock(){},releaseLock(){}})},Utilities:{DigestAlgorithm:{SHA_256:0},computeDigest:(_,s)=>crypto.createHash('sha256').update(s).digest(),base64EncodeWebSafe:b=>Buffer.from(b).toString('base64url')},getClassList:()=>active?roster:roster.slice(0,2),assertAdminKey:k=>{if(k!=='test-only')throw Error('Unauthorized');}};
+vm.createContext(ctx);vm.runInContext(src,ctx);
+const call=p=>ctx.examHandle({adminKey:'test-only',...p});
+assert.throws(()=>ctx.examHandle({mode:'exam-book'}),/Unauthorized/);
+assert.equal(call({mode:'exam-book'}).book.periods.length,0);assert.equal(Object.keys(sheets).length,0);
+call({mode:'exam-create',id:'exam_test_001',year:'2026-2027',title:'Giữa học kỳ I',date:'2026-10-17'});
+call({mode:'exam-create',id:'exam_test_001',year:'2026-2027',title:'Giữa học kỳ I',date:'2026-10-17'});
+assert.equal(sheets.KY_THI.rows.length,2);
+assert.throws(()=>call({mode:'exam-create',id:'exam_test_002',year:'2026-2027',title:'Giữa học kỳ I'}),/cùng tên/);
+const save=(code,scores,electives,revision='')=>call({mode:'exam-save-row',id:'exam_test_001',code,revision,data:JSON.stringify({scores,electives})});
+assert.throws(()=>save('001',[8,7,9,8,6,5],['LY','LY']),/khác nhau/);
+assert.throws(()=>save('001',[11,7,9,8,6,5],['LY','ANH']),/0 đến 10/);
+const a=save('001',[8,7,9,8,6,5],['LY','ANH']).record;
+save('002',[9,7,8,8,6,5],['LY','ANH']);
+save('003',[10,10,10,10,10,10],['LY','HOA']);
+assert.equal(ctx.erParentReports('001').length,0);
+let book=call({mode:'exam-book'}).book,period=book.periods[0];
+let report=ctx.erReport(period,book.roster[0],book.roster);
+assert.equal(report.subjects.length,6);assert.equal(report.four,undefined);
+assert.deepEqual(Array.from(report.blocks,x=>x.code).sort(),['A01','C01','D01','D11']);
+assert.equal(report.blocks.find(x=>x.code==='A01').value,25);
+assert.equal(report.blocks.find(x=>x.code==='A01').count,2);
+assert.equal(report.blocks.find(x=>x.code==='A01').rank,1); // equal totals share rank; higher scorer with different electives excluded
+assert.equal(report.blocks[0].preferred,true);
+assert.throws(()=>save('001',[7,7,9,8,6,5],['LY','ANH']),/thay đổi/);
+save('001',[8,7,9,8,6,5],['LY','ANH']); // retry same row: no duplicate
+assert.equal(sheets.DIEM_KY_THI.rows.length,4);
+call({mode:'exam-publish',id:period.id,revision:period.revision,published:'yes'});
+let publicReport=ctx.erParentReports('001');assert.equal(publicReport.length,1);assert(!JSON.stringify(publicReport).includes('Student B'));assert(!JSON.stringify(publicReport).includes('002'));
+save('001',[0,7,'',8,6,5],['LY','ANH'],a.revision);
+assert.equal(ctx.erParentReports('001').length,0);
+book=call({mode:'exam-book'}).book;report=ctx.erReport(book.periods[0],book.roster[0],book.roster);
+assert.equal(report.subjects[0].value,0);assert.equal(report.subjects[2].value,null);assert.equal(report.blocks[0].value,null);
+assert.throws(()=>call({mode:'exam-publish',id:period.id,revision:period.revision,published:'yes'}),/thay đổi/);
+active=false;assert.equal(call({mode:'exam-book'}).book.periods[0].rows.length,2);
+for(const f of ['exam-core.js','exam-reports.js'])new vm.Script(fs.readFileSync(__dirname+'/'+f,'utf8'));
+const html=fs.readFileSync(__dirname+'/Code Web.html','utf8');for(const m of html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/g))new vm.Script(m[1]);
+console.log('PASS: auth, period isolation/idempotency, validation, no duplicate saves, revision conflicts, publish/draft, parent privacy, zero/missing scores, 3-subject combinations, roster filtering and JS syntax.');

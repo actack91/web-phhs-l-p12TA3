@@ -5,6 +5,10 @@ function makeSheet(){const rows=[];return {rows,setFrozenRows(){},getDataRange()
 const roster=[{studentCode:'001',name:'Student A',khoiThi:'A01'},{studentCode:'002',name:'Student B',khoiThi:'A01'},{studentCode:'003',name:'Student C',khoiThi:'A00'}];
 const ctx={SpreadsheetApp:{getActiveSpreadsheet:()=>({getSheetByName:n=>sheets[n],insertSheet:n=>sheets[n]=makeSheet()}),flush(){}},LockService:{getScriptLock:()=>({waitLock(){},releaseLock(){}})},Utilities:{DigestAlgorithm:{SHA_256:0},computeDigest:(_,s)=>crypto.createHash('sha256').update(s).digest(),base64EncodeWebSafe:b=>Buffer.from(b).toString('base64url')},getClassList:()=>active?roster:roster.slice(0,2),assertAdminKey:k=>{if(k!=='test-only')throw Error('Unauthorized');}};
 vm.createContext(ctx);vm.runInContext(src,ctx);
+assert.deepEqual(Array.from(ctx.erChoices('ANH + LÝ')).sort(),['ANH','LY']);
+assert.deepEqual(Array.from(ctx.erChoices('HOÁ + SINH')).sort(),['HOA','SINH']);
+assert.deepEqual(Array.from(ctx.erChoices('A01')).sort(),['ANH','LY']);
+assert.equal(ctx.erChoices('D01').length,0); // not enough information to infer a second elective
 const call=p=>ctx.examHandle({adminKey:'test-only',...p});
 assert.throws(()=>ctx.examHandle({mode:'exam-book'}),/Unauthorized/);
 assert.equal(call({mode:'exam-book'}).book.periods.length,0);assert.equal(Object.keys(sheets).length,0);

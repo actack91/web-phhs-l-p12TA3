@@ -1,6 +1,6 @@
 # Phiếu điểm kỳ thi — 12TA3
 
-Vào **Điểm học tập → Phiếu điểm kỳ thi**. Tạo kỳ theo năm học, chọn hai môn tự chọn cho từng học sinh, nhập sáu môn rồi **Lưu điểm lên Sheet**. Kiểm tra bằng nút **Xem**, sau đó **Công bố cho PHHS**. Chọn lại kỳ để sửa; mỗi lần lưu sửa sẽ chuyển kỳ về Đang nhập, cần công bố lại.
+Vào **Điểm học tập → Phiếu điểm kỳ thi**. Tạo kỳ theo năm học, kiểm tra hai môn tự chọn cho từng học sinh, nhập sáu môn rồi **Lưu điểm lên Sheet**. Môn tự chọn được điền sẵn nếu `KhoiThi` ghi rõ như `ANH + LÝ`, `HOÁ + SINH`, hoặc mã tổ hợp xác định được đúng hai môn. Kiểm tra bằng nút **Xem**, sau đó **Công bố cho PHHS**. Chọn lại kỳ để sửa; mỗi lần lưu sửa sẽ chuyển kỳ về Đang nhập, cần công bố lại.
 
 PHHS xem đủ sáu môn, trung bình lớp và thứ hạng môn. Từ Toán, Văn và hai môn tự chọn, phiếu tạo các tổ hợp ba môn có trong danh mục và tính tổng /30. Không có tổng bốn môn. Khối trong trường `KhoiThi` của `HOC_SINH` được ưu tiên hiển thị. Nếu khối này không tạo được từ bốn môn đã chọn, phiếu báo rõ, không tạo tổng giả.
 

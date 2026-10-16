@@ -72,9 +72,10 @@ function examHandle(p){
    if((old?erHash(old):'')!==String(p.revision||''))throw new Error('Điểm trên Sheet đã thay đổi. Tải lại rồi đối chiếu trước khi lưu.');
    // Any edit returns the period to draft so PHHS never sees a partially saved batch.
    const pt=erPeriods(false).sheet,all=pt.getDataRange().getDisplayValues(),pi=all.findIndex(r=>r[0]===p.id);pt.getRange(pi+1,5,1,2).setValues([['DRAFT',now]]);
-   if(index>=0){const all=table.sheet.getDataRange().getDisplayValues();const actual=all.findIndex((r,i)=>i>0&&r[0]===p.id&&r[1]===String(p.code));table.sheet.getRange(actual+1,1,1,11).setValues([row]);}else table.sheet.appendRow(row);
+   const written=row.slice();written[1]="\'"+String(p.code);
+   if(index>=0){const all=table.sheet.getDataRange().getDisplayValues();const actual=all.findIndex((r,i)=>i>0&&r[0]===p.id&&r[1]===String(p.code));if(actual<1)throw new Error('Không tìm thấy dòng điểm để cập nhật.');table.sheet.getRange(actual+1,1,1,11).setValues([written]);}else table.sheet.appendRow(written);
    SpreadsheetApp.flush();
-   const saved=erScores(false).rows.find(r=>r[0]===p.id&&r[1]===String(p.code));return {ok:true,record:erRecord(saved)};
+   const saved=erScores(false).rows.find(r=>r[0]===p.id&&r[1]===String(p.code));if(!saved)throw new Error('Chưa xác nhận được mã học sinh sau khi ghi. Giữ bản nhập và thử lại.');return {ok:true,record:erRecord(saved)};
   }
   if(p.mode==='exam-publish'){
    if(period.revision!==p.revision)throw new Error('Dữ liệu đã thay đổi. Tải lại và kiểm tra trước khi công bố.');

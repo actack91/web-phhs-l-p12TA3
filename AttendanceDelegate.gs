@@ -40,7 +40,7 @@ function acHandle(p){
   if(mode==='ac-admin-grant'){
    var roster=acRoster(),officer=roster.filter(function(s){return s.code===String(p.officer);})[0],target=roster.filter(function(s){return s.code===String(p.target);})[0];
    if(!officer||!target||officer.code===target.code)throw new Error('Chọn hai học sinh khác nhau trong lớp.');
-   if(!/^[A-Za-z0-9]{12,64}$/.test(String(p.pin||''))||String(p.pin)===String(p.adminKey))throw new Error('Mã riêng cần 12–64 chữ hoặc số, khác mã quản trị.');
+   if(!/^[A-Za-z0-9]{8,64}$/.test(String(p.pin||''))||String(p.pin)===String(p.adminKey))throw new Error('Mã riêng cần 8–64 chữ hoặc số, khác mã quản trị.');
    if(p.consent!==true)throw new Error('Cần xác nhận sự đồng ý cho phân công.');
    var id=Utilities.getUuid();c={id:id,officer:officer,target:target,start:acToday(),active:true,salt:id,pinHash:acHash(id+':'+p.pin)};
    props.setProperty('ATTENDANCE_DELEGATE_V1',JSON.stringify(c));return {ok:true,assignment:acPublicConfig(c)};

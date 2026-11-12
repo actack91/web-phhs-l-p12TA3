@@ -1,7 +1,7 @@
 # Chuyên cần được phân công — 12TA3
 
 GVCN: Điểm danh → Chuyên cần được phân công, hoặc `chuyen-can.html?admin=1`.
-Đăng nhập mã quản trị, chọn cán bộ lớp và đúng học sinh cần theo dõi; tự đặt mã riêng 12–64 chữ/số; xác nhận đã có sự đồng ý rồi cấp quyền.
+Đăng nhập mã quản trị, chọn cán bộ lớp và đúng học sinh cần theo dõi; tự đặt mã riêng 8–64 chữ/số; xác nhận đã có sự đồng ý rồi cấp quyền.
 Gửi `chuyen-can.html` và mã riêng cho cán bộ lớp qua kênh riêng. Không gửi mã quản trị.
 
 Mỗi phân công có đúng một học sinh được theo dõi và một cán bộ lớp. Cấp lại thay thế phân công cũ. Thu hồi quyền có hiệu lực trên máy chủ ngay ở yêu cầu tiếp theo. Phiên cán bộ lớp hết hạn sau 12 giờ và không lưu mật khẩu/token vào localStorage. Chỉ GVCN được xem danh sách chọn người; cán bộ lớp chỉ nhận tên người được giao và các bản ghi từ ngày phân công.

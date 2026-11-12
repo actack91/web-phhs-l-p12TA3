@@ -6,11 +6,12 @@ vm.createContext(ctx);vm.runInContext(fs.readFileSync(__dirname+'/AttendanceDele
 const call=p=>ctx.acHandle(p),admin=(mode,p={})=>call({mode:'ac-admin-'+mode,adminKey:'test-admin',...p});
 assert.throws(()=>call({mode:'ac-admin-info'}),/unauthorized/);
 assert.equal(call({mode:'ac-list'}).authExpired,true);
-assert.throws(()=>admin('grant',{officer:'001',target:'002',pin:'abcdefghijkl'}),/đồng ý/);
-admin('grant',{officer:'001',target:'002',pin:'abcdefghijkl',consent:true});
+assert.throws(()=>admin('grant',{officer:'001',target:'002',pin:'abcd1234'}),/đồng ý/);
+assert.throws(()=>admin('grant',{officer:'001',target:'002',pin:'abc1234',consent:true}),/8–64/);
+admin('grant',{officer:'001',target:'002',pin:'abcd1234',consent:true});
 assert.equal(admin('info').assignment.target.code,'002');
 assert.throws(()=>call({mode:'ac-login',pin:'wrong'}),/không đúng/);
-const login=call({mode:'ac-login',pin:'abcdefghijkl'}),token=login.token;
+const login=call({mode:'ac-login',pin:'abcd1234'}),token=login.token;
 const date=new Date().toISOString().slice(0,10);
 const base={mode:'ac-save',token,code:'002',date,status:'late',arrival:'07:35',note:'=sample',operation:crypto.randomUUID(),baseRevision:''};
 assert.throws(()=>call({...base,arrival:''}),/giờ đến/);
@@ -26,9 +27,9 @@ saved=admin('save',{...base,mode:'ac-admin-save',adminKey:'test-admin',operation
 assert.equal(saved.records[0].arrival,'');assert.equal(saved.records[0].actor,'GVCN');
 assert.equal(call({mode:'ac-list',token}).records[0].status,'excused');
 admin('revoke');assert.equal(call({mode:'ac-list',token}).authExpired,true);assert.equal(call({...base,operation:crypto.randomUUID()}).authExpired,true);
-admin('grant',{officer:'003',target:'001',pin:'mnopqrstuvwx',consent:true});
+admin('grant',{officer:'003',target:'001',pin:'wxyz5678',consent:true});
 assert.equal(call({mode:'ac-list',token}).authExpired,true);
-const t2=call({mode:'ac-login',pin:'mnopqrstuvwx'}).token;assert.equal(call({mode:'ac-list',token:t2}).records.length,0);
+const t2=call({mode:'ac-login',pin:'wxyz5678'}).token;assert.equal(call({mode:'ac-list',token:t2}).records.length,0);
 assert.equal(ctx.doPost({postData:{contents:'broken'}}).ok,false);
 new vm.Script(fs.readFileSync(__dirname+'/chuyen-can.js','utf8'));
 console.log('PASS: scoped auth, consent, required arrival, valid dates, ID preservation, formula safety, retry, conflicts, teacher edit, revoke and reassignment');

@@ -15,7 +15,7 @@ async function request(mode,params={}){
 }
 async function action(fn){if(busy)return;busy=true;document.querySelectorAll('button,input,select,textarea').forEach(b=>b.disabled=true);try{message('Đang xử lý…');await fn();}catch(e){message(e.message);}finally{busy=false;document.querySelectorAll('button,input,select,textarea').forEach(b=>b.disabled=false);}}
 function render(){
- $('entry').hidden=!assignment;$('historyPanel').hidden=!assignment;
+ $('monthlyPanel').hidden=!assignment;renderMonth();$('entry').hidden=!assignment;$('historyPanel').hidden=!assignment;
  if(!assignment){$('assignment').textContent='Chưa có phân công. Thầy chọn cán bộ lớp phụ trách cả lớp bên dưới.';return;}
  $('assignment').textContent=`${assignment.officer.name} → ${assignment.scope==='class'?'Cả lớp 12TA3':assignment.target?.name||'Phân công cũ'} · ${assignment.active?'Đang có quyền':'Đã thu hồi quyền'}`;
  $('targetTitle').textContent='Chuyên cần lớp 12TA3';
@@ -61,3 +61,21 @@ function renderDay(){
  $('classList').innerHTML=students.map(s=>{const r=day.find(r=>r.code===s.code);return `<button type="button" class="secondary student-card" data-student="${esc(s.code)}" aria-pressed="${s.code===$('student').value}"><strong>${esc(s.name)}</strong><span>${esc(r?labels[r.status]+(r.status==='late'?' · '+r.arrival:''):'Chưa ghi')}</span></button>`;}).join('');
 }
 $('classList').onclick=e=>{const b=e.target.closest('[data-student]');if(!b||busy||dirty&&!confirm('Chuyển học sinh và bỏ thay đổi chưa lưu?'))return;$('student').value=b.dataset.student;selectedStudent=b.dataset.student;loadDay();$('recordForm').scrollIntoView({behavior:'smooth'});};
+
+$('summaryMonth').value=today().slice(0,7);
+$('summaryMonth').max=today().slice(0,7);
+$('summaryMonth').onchange=renderMonth;
+function renderMonth(){
+ const month=$('summaryMonth').value||today().slice(0,7),summary=AttendanceMonthly.summarize(students,records,month);
+ $('monthScope').textContent=adminMode?'Thống kê danh sách lớp hiện tại từ sổ chuyên cần được phân công.':'Chỉ tổng hợp dữ liệu được phép xem, từ ngày '+(assignment?.start||'').split('-').reverse().join('/')+'.';
+ $('monthCaption').textContent='Tháng '+month.split('-').reverse().join('/')+' · '+summary.rows.length+' học sinh';
+ $('monthTotals').textContent=summary.days.length?`${summary.days.length} ngày có ghi nhận · ${summary.total.excused} lượt nghỉ phép · ${summary.total.unexcused} lượt nghỉ không phép · ${summary.total.late} lượt đến muộn`:'Tháng này chưa có dữ liệu chuyên cần trong phạm vi được xem.';
+ $('monthRows').innerHTML=summary.rows.map(s=>`<tr><th scope="row">${esc(s.name)}</th><td>${s.present}</td><td>${s.excused}</td><td>${s.unexcused}</td><td>${s.late}</td><td>${s.missing}</td><td><button class="secondary" type="button" data-month-student="${esc(s.code)}">Xem</button></td></tr>`).join('');
+ $('monthDetails').textContent='';
+}
+$('monthRows').onclick=e=>{
+ const b=e.target.closest('[data-month-student]');if(!b||busy)return;
+ const summary=AttendanceMonthly.summarize(students,records,$('summaryMonth').value||today().slice(0,7)),s=summary.rows.find(s=>s.code===b.dataset.monthStudent);if(!s)return;
+ $('monthDetails').innerHTML=`<h3>${esc(s.name)} · Chi tiết tháng</h3>`+(s.records.length?s.records.map(r=>`<article><strong>${esc(r.date.split('-').reverse().join('/'))} · ${esc(labels[r.status])}</strong><p>${esc((r.status==='late'?'Giờ đến: '+r.arrival+'\n':'')+(r.note||''))}</p></article>`).join(''):'<p>Chưa có bản ghi trong tháng này.</p>');
+ $('monthDetails').scrollIntoView({behavior:'smooth',block:'nearest'});
+};

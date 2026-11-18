@@ -1,0 +1,11 @@
+const assert=require('node:assert/strict');
+const {summarize}=require('./attendance-monthly.js');
+const students=[{code:'001',name:'A'},{code:'002',name:'B'}];
+const records=[{code:'001',date:'2026-11-01',status:'late',updatedAt:'2026-11-01T07:00:00Z'},{code:'001',date:'2026-11-01',status:'excused',updatedAt:'2026-11-01T08:00:00Z'},{code:'002',date:'2026-11-01',status:'present'},{code:'001',date:'2026-11-02',status:'late',arrival:'07:30'},{code:'001',date:'2026-10-01',status:'unexcused'},{code:'999',date:'2026-11-03',status:'late'}];
+const result=summarize(students,records,'2026-11');
+assert.deepEqual(result.total,{present:1,excused:1,unexcused:0,late:1});
+assert.equal(result.days.length,2);assert.equal(result.rows[0].missing,0);assert.equal(result.rows[1].missing,1);assert.equal(result.rows[0].records[0].arrival,'07:30');
+assert.equal(summarize(students,records,'2026-12').days.length,0);assert.equal(summarize(students,records,'2026-12').rows[0].missing,0);
+assert.equal(summarize([students[1]],records,'2026-11').days.length,1);
+assert.equal(summarize(students,[...records].reverse(),'2026-11').total.excused,1);
+console.log('PASS: month boundaries, latest revision, per-student totals, scope, missing records, empty month and late detail');

@@ -1,21 +1,15 @@
-# Chuyên cần được phân công — 12TA3
+# Chuyên cần cả lớp — 12TA3
 
-GVCN: Điểm danh → Chuyên cần được phân công, hoặc `chuyen-can.html?admin=1`.
-Đăng nhập mã quản trị, chọn cán bộ lớp và đúng học sinh cần theo dõi; tự đặt mã riêng 8–64 chữ/số; xác nhận đã có sự đồng ý rồi cấp quyền.
-Gửi `chuyen-can.html` và mã riêng cho cán bộ lớp qua kênh riêng. Không gửi mã quản trị.
+GVCN mở `chuyen-can.html?admin=1`, đăng nhập, chọn cán bộ lớp, đặt mã riêng tối thiểu 8 chữ/số và xác nhận cấp phạm vi **cả lớp**. Gửi `chuyen-can.html` cùng mã riêng cho cán bộ lớp.
 
-Mỗi phân công có đúng một học sinh được theo dõi và một cán bộ lớp. Cấp lại thay thế phân công cũ. Thu hồi quyền có hiệu lực trên máy chủ ngay ở yêu cầu tiếp theo. Phiên cán bộ lớp hết hạn sau 12 giờ và không lưu mật khẩu/token vào localStorage. Chỉ GVCN được xem danh sách chọn người; cán bộ lớp chỉ nhận tên người được giao và các bản ghi từ ngày phân công.
+Phân công một học sinh cũ vẫn giữ nguyên phạm vi cho đến khi GVCN cấp lại. Cấp lại kết thúc phiên cũ và bắt đầu quyền mới từ ngày cấp. Lịch sử đã ghi vẫn giữ nguyên trên Sheet; GVCN xem được mọi ngày. Không tự cấp quyền trong quá trình cập nhật.
 
-Có mặt / Nghỉ có phép / Nghỉ không phép / Đến muộn. Đến muộn bắt buộc giờ đến hợp lệ; giờ đến hiện trong phần ghi chú lịch sử. GVCN có thể sửa ngày cũ. Không tạo ngày tương lai. Chưa ghi không đồng nghĩa có mặt.
+Sau đăng nhập, chọn ngày, chọn học sinh từ danh sách hoặc ô chọn, ghi Có mặt / Nghỉ có phép / Nghỉ không phép / Đến muộn rồi lưu. Đến muộn bắt buộc giờ đến. Bảng tóm tắt hiện đã ghi bao nhiêu học sinh; chưa ghi không có nghĩa có mặt. Lịch sử ghi rõ tên học sinh, ngày, người ghi và giờ đến. Các học sinh trong cùng ngày có bản ghi độc lập.
 
-Dữ liệu ở sheet `CHUYEN_CAN_PHAN_CONG` trong Google Sheet 12TA3; mỗi lần sửa thêm một dòng có người ghi và phiên bản. Giao diện lấy bản mới nhất cho từng ngày. Đây là sổ phân công riêng, chưa tự nhập vào bảng `DIEM_DANH` chung để tránh việc đồng bộ điểm danh cũ ghi đè giờ đến/ghi chú. Không công khai dữ liệu chuyên cần trên cổng lớp.
+Chỉ trả mã học sinh, tên và chuyên cần sau xác thực; không trả mã PHHS, số điện thoại hay điểm số. Thu hồi có hiệu lực trên yêu cầu tiếp theo. Mã/token không lưu localStorage. Chống ghi đè khi phiên bản cũ, gửi lại không tạo trùng, giữ số 0 đầu mã HS.
 
-## Triển khai
-- Thêm `AttendanceDelegate.gs` vào dự án Apps Script 12TA3. Kiểm tra dự án chưa có `doPost` trước khi thêm (nếu đã có, tích hợp nhánh ac- trong doPost hiện có).
-- Dùng lại `assertAdminKey`, `getClassList`, `output` của dự án. Triển khai phiên bản mới cùng deployment ID.
-- Upload `chuyen-can.html`, `chuyen-can.css`, `chuyen-can.js`, `Code Web.html` lên repository 12TA3.
-- Không upload `backend-before.gs`, baseline hoặc dữ liệu kiểm thử xem trước.
+Dùng tiếp sheet `CHUYEN_CAN_PHAN_CONG` gồm các lần ghi/sửa. Giao diện lấy bản mới nhất theo Ngay + MaHS. Chưa tự gộp vào `DIEM_DANH` chung.
 
-## Kiểm thử
-`node test-attendance.cjs`: phân quyền đúng học sinh, hết phiên/thu hồi, ngày/giờ, giữ số 0 mã, chống công thức, chống trùng khi gửi lại, xung đột phiên bản, GVCN sửa.
-Không tạo điểm danh giả, không cấp quyền cho học sinh thật trong quá trình triển khai.
+Triển khai: thay AttendanceDelegate.gs trong Apps Script, triển khai phiên bản mới cùng deployment ID; upload chuyen-can.html/css/js cùng module, tài liệu và test. Không upload backend-before.gs, preview.html hoặc fixture.js.
+
+Kiểm thử: `node test-attendance.cjs`. Kiểm thử thêm giao diện với fixture cục bộ, ghi hai học sinh trong cùng ngày. Không ghi chuyên cần giả lên dữ liệu thật.

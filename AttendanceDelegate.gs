@@ -11,7 +11,7 @@ function acHash(s){return Utilities.base64EncodeWebSafe(Utilities.computeDigest(
 function acToday(){return Utilities.formatDate(new Date(),'Asia/Ho_Chi_Minh','yyyy-MM-dd');}
 function acRoster(){return getClassList().map(function(s){return {code:String(s.studentCode),name:s.name};}).filter(function(s){return s.code;});}
 function acConfig(){return JSON.parse(PropertiesService.getScriptProperties().getProperty('ATTENDANCE_DELEGATE_V1')||'null');}
-function acPublicConfig(c){return c?{officer:c.officer,target:c.target,start:c.start,active:!!c.active}:null;}
+function acPublicConfig(c){return c?{officer:c.officer,target:c.target,scope:c.scope||'single',start:c.start,active:!!c.active}:null;}
 function acTable(){
  var headers=['Ngay','MaHS','TrangThai','GioDen','GhiChu','NguoiGhi','CapNhatLuc','PhienBan','MaYeuCau','MaPhanCong'],ss=SpreadsheetApp.getActiveSpreadsheet(),s=ss.getSheetByName('CHUYEN_CAN_PHAN_CONG');
  if(!s){s=ss.insertSheet('CHUYEN_CAN_PHAN_CONG');s.getRange(1,1,1,headers.length).setValues([headers]);s.setFrozenRows(1);s.getRange('A:J').setNumberFormat('@');}
@@ -38,11 +38,12 @@ function acHandle(p){
   var props=PropertiesService.getScriptProperties(),c=acConfig();
   if(mode==='ac-admin-info')return {ok:true,assignment:acPublicConfig(c),students:acRoster()};
   if(mode==='ac-admin-grant'){
-   var roster=acRoster(),officer=roster.filter(function(s){return s.code===String(p.officer);})[0],target=roster.filter(function(s){return s.code===String(p.target);})[0];
-   if(!officer||!target||officer.code===target.code)throw new Error('Chọn hai học sinh khác nhau trong lớp.');
+   var roster=acRoster(),officer=roster.filter(function(s){return s.code===String(p.officer);})[0];
+   if(!officer)throw new Error('Chọn cán bộ lớp trong danh sách.');
+   if(p.scope!=='class')throw new Error('Tải lại trang để xác nhận phân công cả lớp.');
    if(!/^[A-Za-z0-9]{8,64}$/.test(String(p.pin||''))||String(p.pin)===String(p.adminKey))throw new Error('Mã riêng cần 8–64 chữ hoặc số, khác mã quản trị.');
    if(p.consent!==true)throw new Error('Cần xác nhận sự đồng ý cho phân công.');
-   var id=Utilities.getUuid();c={id:id,officer:officer,target:target,start:acToday(),active:true,salt:id,pinHash:acHash(id+':'+p.pin)};
+   var id=Utilities.getUuid();c={id:id,officer:officer,scope:'class',start:acToday(),active:true,salt:id,pinHash:acHash(id+':'+p.pin)};
    props.setProperty('ATTENDANCE_DELEGATE_V1',JSON.stringify(c));return {ok:true,assignment:acPublicConfig(c)};
   }
   if(mode==='ac-admin-revoke'){
@@ -58,23 +59,24 @@ function acHandle(p){
   }
   if(!admin&&(!c||!c.active||!p.token||acHash(p.token)!==c.tokenHash||Date.now()>=c.expiresAt))return {ok:false,authExpired:true,message:'Phiên đã hết hạn hoặc quyền đã thu hồi. Đăng nhập lại.'};
   if(mode==='ac-logout'){delete c.tokenHash;delete c.expiresAt;props.setProperty('ATTENDANCE_DELEGATE_V1',JSON.stringify(c));return {ok:true};}
-  if(!c)return {ok:true,assignment:null,records:[]};
-  var table=acTable(),records=acRecords(table.rows),visible=records.filter(function(r){return r.code===c.target.code&&(admin||r.date>=c.start);});
-  if(mode==='ac-list'||mode==='ac-admin-list')return {ok:true,assignment:acPublicConfig(c),records:visible};
+  if(!c)return {ok:true,assignment:null,records:[],students:[]};
+  var roster=acRoster(), permitted=roster.filter(function(s){return admin||c.scope==='class'||(c.target&&s.code===c.target.code);});
+  var codes=permitted.map(function(s){return s.code;}),table=acTable(),records=acRecords(table.rows),visible=records.filter(function(r){return (admin||codes.indexOf(r.code)>=0)&&(admin||r.date>=c.start);});
+  if(mode==='ac-list'||mode==='ac-admin-list')return {ok:true,assignment:acPublicConfig(c),records:visible,students:permitted};
   var v=acValidate(p);
-  if(String(p.code)!==c.target.code)throw new Error('Không có quyền ghi chuyên cần của học sinh này.');
+  if(codes.indexOf(String(p.code))<0)throw new Error('Không có quyền ghi chuyên cần của học sinh này.');
   if(!admin&&v.date<c.start)throw new Error('Chỉ được ghi từ ngày được phân công.');
   if(!/^[a-f0-9-]{20,80}$/i.test(String(p.operation||'')))throw new Error('Mã yêu cầu không hợp lệ.');
   var priorOp=table.rows.filter(function(r){return r[8]===p.operation;})[0];
   if(priorOp){
    if(priorOp[0]!==v.date||priorOp[1]!==String(p.code)||priorOp[2]!==v.status||priorOp[3]!==v.arrival||priorOp[4]!==v.note)throw new Error('Mã yêu cầu đã dùng. Tải lại trước khi sửa.');
-   return {ok:true,records:visible,assignment:acPublicConfig(c)};
+   return {ok:true,records:visible,assignment:acPublicConfig(c),students:permitted};
   }
-  var old=records.filter(function(r){return r.code===c.target.code&&r.date===v.date;})[0];
+  var old=records.filter(function(r){return r.code===String(p.code)&&r.date===v.date;})[0];
   if(String(p.baseRevision||'')!==(old?old.revision:''))throw new Error('Ngày này đã được cập nhật. Tải lại lịch sử rồi sửa để tránh ghi đè.');
-  var record={date:v.date,code:c.target.code,status:v.status,arrival:v.arrival,note:v.note,actor:admin?'GVCN':c.officer.name,updatedAt:new Date().toISOString(),revision:Utilities.getUuid(),operation:p.operation,assignment:c.id};
+  var record={date:v.date,code:String(p.code),status:v.status,arrival:v.arrival,note:v.note,actor:admin?'GVCN':c.officer.name,updatedAt:new Date().toISOString(),revision:Utilities.getUuid(),operation:p.operation,assignment:c.id};
   // Apostrophe preserves IDs and prevents user-entered text becoming a Sheet formula.
   table.sheet.appendRow([record.date,record.code,record.status,record.arrival,record.note,record.actor,record.updatedAt,record.revision,record.operation,record.assignment].map(function(x){return "'"+String(x);}));
-  return {ok:true,assignment:acPublicConfig(c),records:[record].concat(visible.filter(function(r){return r.date!==v.date;})).sort(function(a,b){return b.date.localeCompare(a.date);})};
+  return {ok:true,assignment:acPublicConfig(c),students:permitted,records:[record].concat(visible.filter(function(r){return r.date!==v.date||r.code!==record.code;})).sort(function(a,b){return b.date.localeCompare(a.date);})};
  } finally {lock.releaseLock();}
 }
